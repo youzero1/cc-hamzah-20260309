@@ -1,0 +1,689 @@
+'-') {
+      this.consume();
+      return -this.parseFactor();
+    }
+
+    throw new Error(`Unexpected token: ${token.value}`);
+  }
+}
+
+export function evaluate(expression: string): string {
+  if (!expression || expression.trim() === '') {
+    throw new Error('Empty expression');
+  }
+
+  const tokens = tokenize(expression);
+  if (tokens.length === 0) {
+    throw new Error('Empty expression');
+  }
+
+  const parser = new Parser(tokens);
+  const result = parser.parse();
+
+  if (!isFinite(result)) {
+    throw new Error('Result is not finite');
+  }
+
+  // Format result: remove trailing zeros
+  const formatted = parseFloat(result.toPrecision(12));
+  return String(formatted);
+}
+
+export function isValidExpression(expression: string): boolean {
+  try {
+    evaluate(expression);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function formatDisplay(value: string): string {
+  // Add commas to the integer part for display
+  if (!value || value === 'Error') return value;
+
+  const parts = value.split('.');
+  const intPart = parts[0];
+  const decPart = parts[1];
+
+  // Don't format if it contains operators
+  if (/[+\-*/()]/.test(value)) return value;
+
+  const isNegative = intPart.startsWith('-');
+  const absInt = isNegative ? intPart.slice(1) : intPart;
+  const formatted = absInt.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+  let result = isNegative ? `-${formatted}` : formatted;
+  if (decPart !== undefined) {
+    result += `.${decPart}`;
+  }
+
+  return result;
+}
+</file>
+
+<file path="src/components/CalculatorDisplay.tsx">
+'use client';
+
+import React from 'react';
+
+interface CalculatorDisplayProps {
+  expression: string;
+  result: string;
+  isError: boolean;
+}
+
+export default function CalculatorDisplay({ expression, result, isError }: CalculatorDisplayProps) {
+  return (
+    <div
+      style={{
+        background: 'linear-gradient(135deg, #1a1a2e 0%, #16162a 100%)',
+        borderRadius: '16px',
+        padding: '1.5rem',
+        marginBottom: '1rem',
+        minHeight: '120px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
+        alignItems: 'flex-end',
+        border: '1px solid #2a2a3d',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Expression */}
+      <div
+        style={{
+          color: '#6b6b88',
+          fontSize: '1rem',
+          marginBottom: '0.5rem',
+          width: '100%',
+          textAlign: 'right',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          minHeight: '1.5rem',
+        }}
+      >
+        {expression || '\u00A0'}
+      </div>
+
+      {/* Result */}
+      <div
+        style={{
+          color: isError ? '#f56a6a' : '#ffffff',
+          fontSize: result.length > 12 ? '1.75rem' : '2.5rem',
+          fontWeight: '700',
+          width: '100%',
+          textAlign: 'right',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          transition: 'font-size 0.2s ease',
+          letterSpacing: '-0.5px',
+        }}
+      >
+        {result || '0'}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/CalculatorButton.tsx">
+'use client';
+
+import React from 'react';
+
+interface CalculatorButtonProps {
+  label: string;
+  onClick: () => void;
+  variant?: 'default' | 'operator' | 'equals' | 'clear' | 'special';
+  span?: number;
+}
+
+const variantStyles: Record<string, React.CSSProperties> = {
+  default: {
+    background: '#252535',
+    color: '#ffffff',
+  },
+  operator: {
+    background: '#2a2040',
+    color: '#a78bfa',
+  },
+  equals: {
+    background: 'linear-gradient(135deg, #7c6af5, #5b4fe0)',
+    color: '#ffffff',
+  },
+  clear: {
+    background: '#3d2020',
+    color: '#f56a6a',
+  },
+  special: {
+    background: '#1e1e2a',
+    color: '#a0a0b8',
+  },
+};
+
+export default function CalculatorButton({
+  label,
+  onClick,
+  variant = 'default',
+  span = 1,
+}: CalculatorButtonProps) {
+  const style = variantStyles[variant] || variantStyles.default;
+
+  return (
+    <button
+      onClick={onClick}
+      className="btn-press"
+      style={{
+        ...style,
+        gridColumn: span > 1 ? `span ${span}` : undefined,
+        border: 'none',
+        borderRadius: '12px',
+        padding: '1rem',
+        fontSize: '1.25rem',
+        fontWeight: '600',
+        cursor: 'pointer',
+        transition: 'all 0.15s ease',
+        outline: 'none',
+        minHeight: '60px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.opacity = '0.85';
+        e.currentTarget.style.transform = 'scale(1.02)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.opacity = '1';
+        e.currentTarget.style.transform = 'scale(1)';
+      }}
+      aria-label={label}
+    >
+      {label}
+    </button>
+  );
+}
+</file>
+
+<file path="src/components/ShareButton.tsx">
+'use client';
+
+import React, { useState } from 'react';
+
+interface ShareButtonProps {
+  expression: string;
+  result: string;
+}
+
+export default function ShareButton({ expression, result }: ShareButtonProps) {
+  const [copied, setCopied] = useState(false);
+
+  const handleShare = async () => {
+    if (!expression && !result) return;
+
+    const text = `${expression} = ${result}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'Calculation from cc',
+          text: text,
+        });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // User cancelled share or clipboard failed
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        // Silently fail
+      }
+    }
+  };
+
+  return (
+    <button
+      onClick={handleShare}
+      disabled={!expression && !result}
+      style={{
+        background: copied ? '#2d4a2d' : '#252535',
+        color: copied ? '#6af56a' : '#a0a0b8',
+        border: '1px solid #2a2a3d',
+        borderRadius: '8px',
+        padding: '0.5rem 1rem',
+        fontSize: '0.8rem',
+        cursor: expression || result ? 'pointer' : 'not-allowed',
+        transition: 'all 0.2s ease',
+        opacity: expression || result ? 1 : 0.5,
+      }}
+      aria-label="Share calculation"
+    >
+      {copied ? '✓ Copied!' : '📤 Share'}
+    </button>
+  );
+}
+</file>
+
+<file path="src/components/CalculationHistory.tsx">
+'use client';
+
+import React, { useEffect, useState, useCallback } from 'react';
+import type { CalculationRecord, ApiResponse } from '@/types';
+
+interface CalculationHistoryProps {
+  onSelect: (expression: string, result: string) => void;
+  refreshTrigger: number;
+}
+
+export default function CalculationHistory({ onSelect, refreshTrigger }: CalculationHistoryProps) {
+  const [history, setHistory] = useState<CalculationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchHistory = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/history');
+      const data: ApiResponse<CalculationRecord[]> = await response.json();
+      if (data.success && data.data) {
+        setHistory(data.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory, refreshTrigger]);
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays}d ago`;
+  };
+
+  return (
+    <div
+      style={{
+        background: '#1e1e2a',
+        borderRadius: '16px',
+        border: '1px solid #2a2a3d',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header */}
+      <div
+        style={{
+          padding: '1rem 1.25rem',
+          borderBottom: '1px solid #2a2a3d',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <h3
+          style={{
+            fontSize: '0.9rem',
+            fontWeight: '600',
+            color: '#a0a0b8',
+          }}
+        >
+          📊 History
+        </h3>
+        <span
+          style={{
+            fontSize: '0.75rem',
+            color: '#6b6b88',
+            background: '#252535',
+            padding: '0.2rem 0.5rem',
+            borderRadius: '10px',
+          }}
+        >
+          {history.length}
+        </span>
+      </div>
+
+      {/* List */}
+      <div
+        className="scrollbar-thin"
+        style={{
+          maxHeight: '400px',
+          overflowY: 'auto',
+          padding: '0.5rem',
+        }}
+      >
+        {loading ? (
+          <div
+            style={{
+              padding: '2rem',
+              textAlign: 'center',
+              color: '#6b6b88',
+              fontSize: '0.85rem',
+            }}
+          >
+            Loading...
+          </div>
+        ) : history.length === 0 ? (
+          <div
+            style={{
+              padding: '2rem',
+              textAlign: 'center',
+              color: '#6b6b88',
+              fontSize: '0.85rem',
+            }}
+          >
+            No calculations yet.
+            <br />
+            Start calculating! 🧮
+          </div>
+        ) : (
+          history.map((calc) => (
+            <button
+              key={calc.id}
+              onClick={() => onSelect(calc.expression, calc.result)}
+              style={{
+                width: '100%',
+                background: 'transparent',
+                border: 'none',
+                borderRadius: '10px',
+                padding: '0.75rem',
+                cursor: 'pointer',
+                textAlign: 'left',
+                transition: 'background 0.15s ease',
+                display: 'block',
+                marginBottom: '0.25rem',
+                color: 'inherit',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#252535';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'transparent';
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: '#a0a0b8',
+                      fontSize: '0.8rem',
+                      marginBottom: '0.2rem',
+                    }}
+                  >
+                    {calc.expression}
+                  </div>
+                  <div
+                    style={{
+                      color: '#ffffff',
+                      fontSize: '1.1rem',
+                      fontWeight: '600',
+                    }}
+                  >
+                    = {calc.result}
+                  </div>
+                </div>
+                <span
+                  style={{
+                    color: '#6b6b88',
+                    fontSize: '0.7rem',
+                    whiteSpace: 'nowrap',
+                    marginLeft: '0.5rem',
+                  }}
+                >
+                  {formatDate(calc.createdAt)}
+                </span>
+              </div>
+            </button>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/Calculator.tsx">
+'use client';
+
+import React, { useState, useCallback } from 'react';
+import CalculatorDisplay from './CalculatorDisplay';
+import CalculatorButton from './CalculatorButton';
+import CalculationHistory from './CalculationHistory';
+import ShareButton from './ShareButton';
+import { evaluate } from '@/lib/calculator';
+
+type ButtonConfig = {
+  label: string;
+  variant: 'default' | 'operator' | 'equals' | 'clear' | 'special';
+  action: string;
+  span?: number;
+};
+
+const buttons: ButtonConfig[] = [
+  { label: 'C', variant: 'clear', action: 'clear' },
+  { label: '(', variant: 'special', action: 'input' },
+  { label: ')', variant: 'special', action: 'input' },
+  { label: '÷', variant: 'operator', action: 'operator' },
+
+  { label: '7', variant: 'default', action: 'input' },
+  { label: '8', variant: 'default', action: 'input' },
+  { label: '9', variant: 'default', action: 'input' },
+  { label: '×', variant: 'operator', action: 'operator' },
+
+  { label: '4', variant: 'default', action: 'input' },
+  { label: '5', variant: 'default', action: 'input' },
+  { label: '6', variant: 'default', action: 'input' },
+  { label: '−', variant: 'operator', action: 'operator' },
+
+  { label: '1', variant: 'default', action: 'input' },
+  { label: '2', variant: 'default', action: 'input' },
+  { label: '3', variant: 'default', action: 'input' },
+  { label: '+', variant: 'operator', action: 'operator' },
+
+  { label: '0', variant: 'default', action: 'input', span: 2 },
+  { label: '.', variant: 'default', action: 'input' },
+  { label: '=', variant: 'equals', action: 'equals' },
+];
+
+// Map display operators to math operators
+function toMathExpression(expr: string): string {
+  return expr
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/−/g, '-');
+}
+
+export default function Calculator() {
+  const [expression, setExpression] = useState('');
+  const [displayResult, setDisplayResult] = useState('0');
+  const [isError, setIsError] = useState(false);
+  const [lastExpression, setLastExpression] = useState('');
+  const [lastResult, setLastResult] = useState('');
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [justEvaluated, setJustEvaluated] = useState(false);
+
+  const saveCalculation = useCallback(async (expr: string, result: string) => {
+    try {
+      await fetch('/api/calculations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expression: expr, result }),
+      });
+      setRefreshTrigger((prev) => prev + 1);
+    } catch (error) {
+      console.error('Failed to save calculation:', error);
+    }
+  }, []);
+
+  const handleButtonClick = useCallback(
+    (btn: ButtonConfig) => {
+      if (btn.action === 'clear') {
+        setExpression('');
+        setDisplayResult('0');
+        setIsError(false);
+        setJustEvaluated(false);
+        return;
+      }
+
+      if (btn.action === 'equals') {
+        if (!expression) return;
+
+        try {
+          const mathExpr = toMathExpression(expression);
+          const result = evaluate(mathExpr);
+          setDisplayResult(result);
+          setLastExpression(expression);
+          setLastResult(result);
+          setIsError(false);
+          setJustEvaluated(true);
+
+          // Save to database
+          saveCalculation(expression, result);
+        } catch {
+          setDisplayResult('Error');
+          setIsError(true);
+          setJustEvaluated(true);
+        }
+        return;
+      }
+
+      // Input or operator
+      setIsError(false);
+
+      if (justEvaluated) {
+        if (btn.action === 'operator') {
+          // Continue with the result
+          setExpression(displayResult + btn.label);
+          setJustEvaluated(false);
+        } else {
+          // Start new expression
+          setExpression(btn.label);
+          setDisplayResult('0');
+          setJustEvaluated(false);
+        }
+        return;
+      }
+
+      setExpression((prev) => prev + btn.label);
+    },
+    [expression, displayResult, justEvaluated, saveCalculation]
+  );
+
+  const handleHistorySelect = useCallback((expr: string, result: string) => {
+    setExpression(expr);
+    setDisplayResult(result);
+    setLastExpression(expr);
+    setLastResult(result);
+    setIsError(false);
+    setJustEvaluated(true);
+  }, []);
+
+  return (
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 280px',
+        gap: '1.5rem',
+        alignItems: 'start',
+      }}
+    >
+      {/* Calculator */}
+      <div
+        style={{
+          background: '#1e1e2a',
+          borderRadius: '20px',
+          padding: '1.5rem',
+          border: '1px solid #2a2a3d',
+          boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
+        }}
+      >
+        {/* Share bar */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <ShareButton expression={lastExpression} result={lastResult} />
+        </div>
+
+        {/* Display */}
+        <CalculatorDisplay
+          expression={expression}
+          result={displayResult}
+          isError={isError}
+        />
+
+        {/* Button Grid */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: '0.6rem',
+          }}
+        >
+          {buttons.map((btn, index) => (
+            <CalculatorButton
+              key={`${btn.label}-${index}`}
+              label={btn.label}
+              variant={btn.variant}
+              span={btn.span}
+              onClick={() => handleButtonClick(btn)}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* History Panel */}
+      <CalculationHistory
+        onSelect={handleHistorySelect}
+        refreshTrigger={refreshTrigger}
+      />
+    </div>
+  );
+}
+</file>
+
+<file path="src/types/index.ts">
+export interface CalculationRecord {
+  id: number;
+  expression: string;
+  result: string;
+  createdAt: string;
+}
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+export type ButtonVariant = 'default' | 'operator' | 'equals' | 'clear' | 'special';
+
+export interface ButtonConfig {
+  label
