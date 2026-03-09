@@ -1,0 +1,25 @@
+'(')) {
+      let num = '-';
+      i++;
+      while (i < expr.length && (/[0-9]/.test(expr[i]) || expr[i] === '.')) {
+        num += expr[i];
+        i++;
+      }
+      if (num === '-') {
+        // It's just a minus operator
+        tokens.push({ type: 'operator', value: '-' });
+      } else {
+        tokens.push({ type: 'number', value: num });
+      }
+      continue;
+    }
+
+    // Handle operators
+    if (['+', '-', '*', '/', '%'].includes(char)) {
+      tokens.push({ type: 'operator', value: char });
+      i++;
+      continue;
+    }
+
+    // Handle parentheses
+    if (char
