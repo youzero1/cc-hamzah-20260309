@@ -1,0 +1,11 @@
+'lparen'))) {
+      let num = '';
+      if (ch === '-') {
+        num += '-';
+        i++;
+      }
+      while (i < expr.length && /[0-9.]/.test(expr[i])) {
+        num += expr[i];
+        i++;
+      }
+      if (num
