@@ -1,0 +1,18 @@
+'%') {
+        this.consume();
+        value = value / 100;
+      }
+      return value;
+    }
+
+    if (token.type === 'lparen') {
+      this.consume(); // consume '('
+      const result = this.parseExpression();
+      const closing = this.consume();
+      if (closing.type !== 'rparen') {
+        throw new Error('Expected closing parenthesis');
+      }
+      return result;
+    }
+
+    if (token.type
