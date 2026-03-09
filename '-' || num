@@ -1,0 +1,76 @@
+'.' || num === '-.') {
+        throw new Error('Invalid number');
+      }
+      tokens.push({ type: 'number', value: num });
+      continue;
+    }
+
+    if (ch === '(') {
+      tokens.push({ type: 'lparen', value: '(' });
+      i++;
+      continue;
+    }
+
+    if (ch === ')') {
+      tokens.push({ type: 'rparen', value: ')' });
+      i++;
+      continue;
+    }
+
+    if (['+', '-', '*', '/'].includes(ch)) {
+      tokens.push({ type: 'operator', value: ch });
+      i++;
+      continue;
+    }
+
+    if (ch === '%') {
+      // Percentage: convert last number token
+      tokens.push({ type: 'operator', value: '%' });
+      i++;
+      continue;
+    }
+
+    throw new Error(`Unexpected character: ${ch}`);
+  }
+
+  return tokens;
+}
+
+// Recursive descent parser
+// Grammar:
+//   expression = term (('+' | '-') term)*
+//   term = factor (('*' | '/') factor)*
+//   factor = NUMBER | '(' expression ')' | '-' factor
+
+class Parser {
+  private tokens: Token[];
+  private pos: number;
+
+  constructor(tokens: Token[]) {
+    this.tokens = tokens;
+    this.pos = 0;
+  }
+
+  parse(): number {
+    const result = this.parseExpression();
+    if (this.pos < this.tokens.length) {
+      throw new Error('Unexpected token after expression');
+    }
+    return result;
+  }
+
+  private peek(): Token | null {
+    return this.pos < this.tokens.length ? this.tokens[this.pos] : null;
+  }
+
+  private consume(): Token {
+    if (this.pos >= this.tokens.length) {
+      throw new Error('Unexpected end of expression');
+    }
+    return this.tokens[this.pos++];
+  }
+
+  private parseExpression(): number {
+    let left = this.parseTerm();
+
+    while (this.peek() && this.peek()!.type
