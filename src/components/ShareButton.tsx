@@ -9,55 +9,58 @@ interface ShareButtonProps {
 
 export default function ShareButton({ expression, result }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState(false);
 
   const handleShare = async () => {
-    if (!result || result === '0' || result === 'Error') return;
-
-    const appName = process.env.NEXT_PUBLIC_APP_NAME || 'cc';
-    const shareText = `🧮 ${appName}: ${expression} = ${result}`;
+    const text = `🧮 ${expression} = ${result}\n\nCalculated with cc calculator`;
 
     try {
-      await navigator.clipboard.writeText(shareText);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setError(true);
-      setTimeout(() => setError(false), 2000);
+      if (navigator.share) {
+        await navigator.share({
+          title: 'cc — Calculator Result',
+          text,
+        });
+      } else {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      // Fallback
+      try {
+        await navigator.clipboard.writeText(text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        console.error('Share failed:', err);
+      }
     }
-  };
-
-  const getLabel = () => {
-    if (copied) return '✓ Copied!';
-    if (error) return '✗ Failed';
-    return '↗ Share';
-  };
-
-  const getBg = () => {
-    if (copied) return 'linear-gradient(135deg, #22c55e, #16a34a)';
-    if (error) return 'linear-gradient(135deg, #ef4444, #dc2626)';
-    return 'linear-gradient(135deg, #1e3a5f, #1a3050)';
   };
 
   return (
     <button
       onClick={handleShare}
-      disabled={!result || result === '0'}
-      style={{
-        background: getBg(),
-        color: copied ? '#ffffff' : error ? '#ffffff' : '#60a5fa',
-        border: `1px solid ${copied ? '#22c55e' : error ? '#ef4444' : '#1e40af'}`,
-        borderRadius: '8px',
-        padding: '0.4rem 0.75rem',
-        fontSize: '0.75rem',
-        fontWeight: '600',
-        cursor: result && result !== '0' ? 'pointer' : 'not-allowed',
-        opacity: result && result !== '0' ? 1 : 0.5,
-        transition: 'all 0.2s ease',
-        letterSpacing: '0.5px',
-      }}
+      className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+        copied
+          ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+          : 'bg-white/5 hover:bg-white/10 text-white/60 hover:text-white border border-white/10 hover:border-white/20'
+      }`}
+      title="Share calculation"
     >
-      {getLabel()}
+      {copied ? (
+        <>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          Copied!
+        </>
+      ) : (
+        <>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+          Share
+        </>
+      )}
     </button>
   );
 }

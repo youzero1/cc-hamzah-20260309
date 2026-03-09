@@ -1,107 +1,48 @@
 'use client';
 
-import { useRef } from 'react';
+import { MouseEvent } from 'react';
+
+type ButtonVariant = 'number' | 'operator' | 'action' | 'equals' | 'zero';
 
 interface CalculatorButtonProps {
   label: string;
-  onClick: () => void;
-  variant?: 'default' | 'operator' | 'equals' | 'function' | 'zero';
-  span?: number;
+  onClick: (value: string) => void;
+  variant?: ButtonVariant;
+  colSpan?: number;
 }
+
+const variantClasses: Record<ButtonVariant, string> = {
+  number:
+    'bg-white/10 hover:bg-white/20 active:bg-white/25 text-white border border-white/10 hover:border-white/20',
+  operator:
+    'bg-violet-500/20 hover:bg-violet-500/35 active:bg-violet-500/45 text-violet-300 border border-violet-500/30 hover:border-violet-400/50',
+  action:
+    'bg-pink-500/20 hover:bg-pink-500/35 active:bg-pink-500/45 text-pink-300 border border-pink-500/30 hover:border-pink-400/50',
+  equals:
+    'bg-gradient-to-br from-violet-500 to-pink-500 hover:from-violet-400 hover:to-pink-400 active:from-violet-600 active:to-pink-600 text-white border-0 shadow-lg shadow-violet-500/30',
+  zero:
+    'bg-white/10 hover:bg-white/20 active:bg-white/25 text-white border border-white/10 hover:border-white/20',
+};
 
 export default function CalculatorButton({
   label,
   onClick,
-  variant = 'default',
-  span = 1,
+  variant = 'number',
+  colSpan,
 }: CalculatorButtonProps) {
-  const btnRef = useRef<HTMLButtonElement>(null);
-
-  const getStyles = (): React.CSSProperties => {
-    const base: React.CSSProperties = {
-      gridColumn: span > 1 ? `span ${span}` : undefined,
-      borderRadius: '12px',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '1.125rem',
-      fontWeight: '500',
-      height: '64px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      transition: 'all 0.15s ease',
-      outline: 'none',
-      position: 'relative',
-      overflow: 'hidden',
-      userSelect: 'none',
-      WebkitUserSelect: 'none',
-    };
-
-    switch (variant) {
-      case 'equals':
-        return {
-          ...base,
-          background: 'linear-gradient(135deg, #7c6af5, #5b4fe0)',
-          color: '#ffffff',
-          boxShadow: '0 4px 15px rgba(124, 106, 245, 0.4)',
-        };
-      case 'operator':
-        return {
-          ...base,
-          background: 'linear-gradient(135deg, #2a1f3d, #1f1a2e)',
-          color: '#a78bfa',
-          border: '1px solid #3d2f60',
-        };
-      case 'function':
-        return {
-          ...base,
-          background: '#1e1e2a',
-          color: '#a0a0b8',
-          border: '1px solid #2a2a3d',
-        };
-      default:
-        return {
-          ...base,
-          background: '#252535',
-          color: '#ffffff',
-          border: '1px solid #2a2a3d',
-        };
-    }
+  const handleClick = (e: MouseEvent) => {
+    e.preventDefault();
+    onClick(label);
   };
 
-  const handleClick = () => {
-    if (btnRef.current) {
-      btnRef.current.style.transform = 'scale(0.93)';
-      setTimeout(() => {
-        if (btnRef.current) {
-          btnRef.current.style.transform = 'scale(1)';
-        }
-      }, 120);
-    }
-    onClick();
-  };
+  const colClass = colSpan === 2 ? 'col-span-2' : '';
 
   return (
     <button
-      ref={btnRef}
       onClick={handleClick}
-      style={getStyles()}
-      onMouseEnter={(e) => {
-        const target = e.currentTarget;
-        if (variant === 'equals') {
-          target.style.filter = 'brightness(1.15)';
-          target.style.boxShadow = '0 6px 20px rgba(124, 106, 245, 0.6)';
-        } else {
-          target.style.filter = 'brightness(1.1)';
-        }
-      }}
-      onMouseLeave={(e) => {
-        const target = e.currentTarget;
-        target.style.filter = 'brightness(1)';
-        if (variant === 'equals') {
-          target.style.boxShadow = '0 4px 15px rgba(124, 106, 245, 0.4)';
-        }
-      }}
+      className={`calculator-btn ${
+        variantClasses[variant]
+      } ${colClass} rounded-2xl font-semibold text-lg h-14 flex items-center justify-center cursor-pointer select-none transition-all duration-150 hover:shadow-md`}
     >
       {label}
     </button>

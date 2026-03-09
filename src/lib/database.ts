@@ -2,16 +2,10 @@ import 'reflect-metadata';
 import { DataSource } from 'typeorm';
 import { Calculation } from '@/entities/Calculation';
 import path from 'path';
-import fs from 'fs';
 
-const dbPath = process.env.DATABASE_PATH || './data/calculator.sqlite';
-const resolvedDbPath = path.resolve(process.cwd(), dbPath);
-
-// Ensure data directory exists
-const dataDir = path.dirname(resolvedDbPath);
-if (!fs.existsSync(dataDir)) {
-  fs.mkdirSync(dataDir, { recursive: true });
-}
+const dbPath = process.env.DATABASE_PATH
+  ? path.resolve(process.env.DATABASE_PATH)
+  : path.resolve('./database.sqlite');
 
 let dataSource: DataSource | null = null;
 
@@ -22,7 +16,7 @@ export async function getDataSource(): Promise<DataSource> {
 
   dataSource = new DataSource({
     type: 'better-sqlite3',
-    database: resolvedDbPath,
+    database: dbPath,
     entities: [Calculation],
     synchronize: true,
     logging: false,

@@ -8,12 +8,19 @@ services:
     ports:
       - '3000:3000'
     environment:
-      - DATABASE_PATH=./data/calculator.sqlite
-      - NEXT_PUBLIC_APP_NAME=cc
       - NODE_ENV=production
+      - DATABASE_PATH=/app/data/database.sqlite
+      - NEXT_PUBLIC_APP_NAME=cc
     volumes:
-      - calculator_data:/app/data
+      - cc_data:/app/data
     restart: unless-stopped
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
-  calculator_data:
+  cc_data:
+    driver: local

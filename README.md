@@ -1,16 +1,16 @@
-# cc — Calculator App
+# cc — Calculator
 
-A social media-inspired calculator built with Next.js, TypeScript, and SQLite.
+A social media-inspired calculator app built with Next.js, TypeScript, and SQLite.
 
 ## Features
 
-- Basic arithmetic operations (+, -, ×, ÷)
-- Percentage and negation
-- Persistent calculation history (SQLite via TypeORM)
-- Social-style history feed with relative timestamps
-- Share button to copy results to clipboard
-- Keyboard input support
-- Responsive dark UI
+- ✅ Basic arithmetic operations (+, -, ×, ÷)
+- ✅ Percentage calculations
+- ✅ Calculation history (SQLite database)
+- ✅ Share/copy results
+- ✅ Keyboard support
+- ✅ Responsive design
+- ✅ Social media-inspired UI
 
 ## Development
 
@@ -19,17 +19,22 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000).
 
-## Docker
+## Production with Docker
 
 ```bash
-docker-compose up --build
+docker-compose up -d
 ```
 
 ## Environment Variables
 
-| Variable | Default | Description |
+| Variable | Description | Default |
 |---|---|---|
-| `DATABASE_PATH` | `./data/calculator.sqlite` | Path to SQLite database |
-| `NEXT_PUBLIC_APP_NAME` | `cc` | App display name |
+| `DATABASE_PATH` | Path to SQLite database file | `./database.sqlite` |
+| `NEXT_PUBLIC_APP_NAME` | App name | `cc` |
+
+## API Routes
+
+- `POST /api/calculations` — Save a new calculation
+- `GET /api/history` — Get last 20 calculations

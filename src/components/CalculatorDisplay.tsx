@@ -1,79 +1,52 @@
 'use client';
 
+import { formatExpression } from '@/lib/calculator';
+
 interface CalculatorDisplayProps {
   expression: string;
-  current: string;
-  hasError: boolean;
+  display: string;
+  hasResult: boolean;
 }
 
 export default function CalculatorDisplay({
   expression,
-  current,
-  hasError,
+  display,
+  hasResult,
 }: CalculatorDisplayProps) {
-  return (
-    <div
-      style={{
-        background: 'linear-gradient(145deg, #12121a, #1a1a28)',
-        borderRadius: '16px',
-        padding: '1.5rem',
-        marginBottom: '1rem',
-        minHeight: '120px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        alignItems: 'flex-end',
-        border: '1px solid #2a2a3d',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Decorative gradient */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 0,
-          right: 0,
-          width: '120px',
-          height: '120px',
-          background: 'radial-gradient(circle, rgba(124, 106, 245, 0.08) 0%, transparent 70%)',
-          pointerEvents: 'none',
-        }}
-      />
+  const fontSize =
+    display.length > 12
+      ? 'text-2xl'
+      : display.length > 9
+      ? 'text-3xl'
+      : display.length > 6
+      ? 'text-4xl'
+      : 'text-5xl';
 
+  return (
+    <div className="glass-card rounded-2xl p-5 mb-3">
       {/* Expression line */}
-      <div
-        style={{
-          color: '#6b6b88',
-          fontSize: '0.875rem',
-          marginBottom: '0.5rem',
-          minHeight: '1.25rem',
-          wordBreak: 'break-all',
-          textAlign: 'right',
-          maxWidth: '100%',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {expression || '\u00A0'}
+      <div className="min-h-[24px] mb-2">
+        <p className="text-right text-white/40 text-sm font-mono truncate">
+          {expression ? formatExpression(expression) : '\u00A0'}
+        </p>
       </div>
 
       {/* Main display */}
-      <div
-        style={{
-          color: hasError ? '#f56a6a' : '#ffffff',
-          fontSize: current.length > 12 ? '1.5rem' : current.length > 8 ? '2rem' : '2.5rem',
-          fontWeight: '300',
-          letterSpacing: '-1px',
-          wordBreak: 'break-all',
-          textAlign: 'right',
-          maxWidth: '100%',
-          lineHeight: '1.2',
-          transition: 'font-size 0.1s ease',
-        }}
-      >
-        {current || '0'}
+      <div className="flex items-end justify-end gap-2">
+        <p
+          className={`text-right font-bold font-mono text-white transition-all duration-150 break-all leading-none ${
+            fontSize
+          } ${hasResult ? 'text-violet-200' : 'text-white'}`}
+        >
+          {display || '0'}
+        </p>
+      </div>
+
+      {/* Subtle indicator dots */}
+      <div className="flex gap-1 mt-3 justify-end">
+        <div className="w-1.5 h-1.5 rounded-full bg-violet-500/60"></div>
+        <div className="w-1.5 h-1.5 rounded-full bg-pink-500/40"></div>
+        <div className="w-1.5 h-1.5 rounded-full bg-white/20"></div>
       </div>
     </div>
   );

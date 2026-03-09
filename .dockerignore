@@ -1,6 +1,9 @@
 node_modules
 .next
-data/
+database.sqlite
 .git
 .gitignore
 *.md
+.env.local
+.env.development
+.env.test

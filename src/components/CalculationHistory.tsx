@@ -1,192 +1,153 @@
 'use client';
 
-import { CalculationRecord } from '@/types';
+import { useEffect, useState, useCallback } from 'react';
 
-interface CalculationHistoryProps {
-  history: CalculationRecord[];
-  onSelect: (record: CalculationRecord) => void;
-  loading: boolean;
+interface HistoryItem {
+  id: number;
+  expression: string;
+  result: string;
+  createdAt: string;
 }
 
-function timeAgo(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffSecs = Math.floor(diffMs / 1000);
-  const diffMins = Math.floor(diffSecs / 60);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSecs < 10) return 'just now';
-  if (diffSecs < 60) return `${diffSecs}s ago`;
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return `${diffDays}d ago`;
+interface CalculationHistoryProps {
+  isOpen: boolean;
+  onClose: () => void;
+  refreshTrigger: number;
+  onSelectItem?: (expression: string, result: string) => void;
 }
 
 export default function CalculationHistory({
-  history,
-  onSelect,
-  loading,
+  isOpen,
+  onClose,
+  refreshTrigger,
+  onSelectItem,
 }: CalculationHistoryProps) {
-  return (
-    <div
-      style={{
-        background: '#1a1a24',
-        borderRadius: '20px',
-        padding: '1rem',
-        border: '1px solid #2a2a3d',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          marginBottom: '1rem',
-          paddingBottom: '0.75rem',
-          borderBottom: '1px solid #2a2a3d',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div
-            style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: '#7c6af5',
-              boxShadow: '0 0 8px rgba(124, 106, 245, 0.8)',
-            }}
-          />
-          <span
-            style={{
-              color: '#ffffff',
-              fontWeight: '600',
-              fontSize: '0.9rem',
-            }}
-          >
-            History
-          </span>
-        </div>
-        <span
-          style={{
-            background: '#252535',
-            color: '#a0a0b8',
-            fontSize: '0.7rem',
-            padding: '2px 8px',
-            borderRadius: '999px',
-            border: '1px solid #2a2a3d',
-          }}
-        >
-          {history.length} calcs
-        </span>
-      </div>
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loading, setLoading] = useState(false);
 
-      {/* Feed */}
+  const fetchHistory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/history');
+      if (res.ok) {
+        const data = await res.json();
+        setHistory(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchHistory();
+    }
+  }, [isOpen, refreshTrigger, fetchHistory]);
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const mins = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    if (hours < 24) return `${hours}h ago`;
+    return date.toLocaleDateString();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <>
+      {/* Backdrop */}
       <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.5rem',
-          scrollbarWidth: 'thin',
-          scrollbarColor: '#7c6af5 transparent',
-        }}
-      >
-        {loading ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100px',
-              color: '#6b6b88',
-              fontSize: '0.875rem',
-            }}
-          >
-            Loading...
-          </div>
-        ) : history.length === 0 ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100px',
-              color: '#6b6b88',
-              gap: '0.5rem',
-            }}
-          >
-            <span style={{ fontSize: '1.5rem' }}>🧮</span>
-            <span style={{ fontSize: '0.8rem' }}>No calculations yet</span>
-          </div>
-        ) : (
-          history.map((record) => (
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 animate-fade-in"
+        onClick={onClose}
+      />
+
+      {/* Panel */}
+      <div className="fixed right-0 top-0 h-full w-full max-w-sm z-50 animate-slide-in">
+        <div className="h-full glass-card border-l border-white/10 flex flex-col" style={{background: 'rgba(15, 10, 40, 0.95)'}}>
+          {/* Header */}
+          <div className="flex items-center justify-between p-5 border-b border-white/10">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-pink-500 flex items-center justify-center">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-white font-bold text-lg leading-none">History</h2>
+                <p className="text-white/40 text-xs mt-0.5">{history.length} calculations</p>
+              </div>
+            </div>
             <button
-              key={record.id}
-              onClick={() => onSelect(record)}
-              style={{
-                background: '#1e1e2a',
-                border: '1px solid #2a2a3d',
-                borderRadius: '12px',
-                padding: '0.75rem',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.15s ease',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '0.25rem',
-                animation: 'fadeIn 0.3s ease-out',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = '#252535';
-                e.currentTarget.style.borderColor = '#7c6af5';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = '#1e1e2a';
-                e.currentTarget.style.borderColor = '#2a2a3d';
-              }}
+              onClick={onClose}
+              className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center text-white/60 hover:text-white transition-all"
             >
-              <div
-                style={{
-                  color: '#a0a0b8',
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                }}
-              >
-                {record.expression}
-              </div>
-              <div
-                style={{
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  fontWeight: '600',
-                }}
-              >
-                = {record.result}
-              </div>
-              <div
-                style={{
-                  color: '#6b6b88',
-                  fontSize: '0.7rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                }}
-              >
-                <span>🕐</span>
-                {timeAgo(record.createdAt)}
-              </div>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
             </button>
-          ))
-        )}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 history-scrollbar">
+            {loading ? (
+              <div className="flex flex-col gap-3">
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} className="h-16 rounded-2xl bg-white/5 animate-pulse" />
+                ))}
+              </div>
+            ) : history.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
+                <div className="w-16 h-16 rounded-3xl bg-white/5 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-white/40 font-medium">No calculations yet</p>
+                  <p className="text-white/20 text-sm mt-1">Your history will appear here</p>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {history.map((item, index) => (
+                  <button
+                    key={item.id}
+                    onClick={() => onSelectItem?.(item.expression, item.result)}
+                    className="w-full text-left rounded-2xl p-4 bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/15 transition-all group"
+                    style={{ animationDelay: `${index * 0.05}s` }}
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white/50 text-xs font-mono truncate group-hover:text-white/70 transition-colors">
+                          {item.expression}
+                        </p>
+                        <p className="text-white font-bold text-lg font-mono mt-1 truncate">
+                          = {item.result}
+                        </p>
+                      </div>
+                      <span className="text-white/20 text-xs shrink-0 mt-0.5">
+                        {formatDate(item.createdAt)}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-white/10">
+            <p className="text-center text-white/20 text-xs">Last 20 calculations</p>
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

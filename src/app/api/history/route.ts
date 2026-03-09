@@ -9,14 +9,14 @@ export async function GET() {
 
     const calculations = await repo.find({
       order: { createdAt: 'DESC' },
-      take: 50,
+      take: 20,
     });
 
-    return NextResponse.json({ success: true, data: calculations });
+    return NextResponse.json(calculations);
   } catch (error) {
     console.error('Error fetching history:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch history' },
+      { error: 'Failed to fetch history' },
       { status: 500 }
     );
   }
