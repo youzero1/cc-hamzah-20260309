@@ -1,17 +1,28 @@
-'+' || this.peek()!.value === '-')) {
+'*' || this.peek()!.value === '/')) {
       const op = this.consume().value;
-      const right = this.parseTerm();
-      if (op === '+') {
-        left = left + right;
+      const right = this.parseFactor();
+      if (op === '*') {
+        left = left * right;
       } else {
-        left = left - right;
+        if (right === 0) {
+          throw new Error('Division by zero');
+        }
+        left = left / right;
       }
     }
 
     return left;
   }
 
-  private parseTerm(): number {
-    let left = this.parseFactor();
+  private parseFactor(): number {
+    const token = this.peek();
 
-    while (this.peek() && this.peek()!.type
+    if (!token) {
+      throw new Error('Unexpected end of expression');
+    }
+
+    if (token.type === 'number') {
+      this.consume();
+      let value = parseFloat(token.value);
+      // Handle percentage
+      if (this.peek() && this.peek()!.type
