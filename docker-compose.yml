@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  cc:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      - DATABASE_PATH=./data/calculator.sqlite
+      - NEXT_PUBLIC_APP_NAME=cc
+      - NODE_ENV=production
+    volumes:
+      - calculator_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  calculator_data:
