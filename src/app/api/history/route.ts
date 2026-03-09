@@ -1,22 +1,20 @@
+import 'reflect-metadata';
 import { NextResponse } from 'next/server';
-import { getDataSource } from '@/lib/database';
-import { Calculation } from '@/entities/Calculation';
+import { getCalculationRepository } from '@/lib/database';
 
 export async function GET() {
   try {
-    const ds = await getDataSource();
-    const repo = ds.getRepository(Calculation);
-
-    const calculations = await repo.find({
+    const repo = await getCalculationRepository();
+    const shared = await repo.find({
+      where: { shared: true },
       order: { createdAt: 'DESC' },
       take: 20,
     });
-
-    return NextResponse.json(calculations);
+    return NextResponse.json({ success: true, data: shared });
   } catch (error) {
-    console.error('Error fetching history:', error);
+    console.error('GET /api/history error:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch history' },
+      { success: false, error: 'Failed to fetch shared calculations' },
       { status: 500 }
     );
   }

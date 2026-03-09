@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -6,7 +5,7 @@ import {
   CreateDateColumn,
 } from 'typeorm';
 
-@Entity()
+@Entity('calculations')
 export class Calculation {
   @PrimaryGeneratedColumn()
   id!: number;
@@ -16,6 +15,12 @@ export class Calculation {
 
   @Column({ type: 'text' })
   result!: string;
+
+  @Column({ type: 'boolean', default: false })
+  shared!: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  likes!: number;
 
   @CreateDateColumn()
   createdAt!: Date;

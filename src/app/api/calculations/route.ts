@@ -1,6 +1,23 @@
+import 'reflect-metadata';
 import { NextRequest, NextResponse } from 'next/server';
-import { getDataSource } from '@/lib/database';
-import { Calculation } from '@/entities/Calculation';
+import { getCalculationRepository } from '@/lib/database';
+
+export async function GET() {
+  try {
+    const repo = await getCalculationRepository();
+    const calculations = await repo.find({
+      order: { createdAt: 'DESC' },
+      take: 50,
+    });
+    return NextResponse.json({ success: true, data: calculations });
+  } catch (error) {
+    console.error('GET /api/calculations error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch calculations' },
+      { status: 500 }
+    );
+  }
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,22 +26,25 @@ export async function POST(request: NextRequest) {
 
     if (!expression || result === undefined) {
       return NextResponse.json(
-        { error: 'Missing expression or result' },
+        { success: false, error: 'Expression and result are required' },
         { status: 400 }
       );
     }
 
-    const ds = await getDataSource();
-    const repo = ds.getRepository(Calculation);
+    const repo = await getCalculationRepository();
+    const calculation = repo.create({
+      expression: String(expression),
+      result: String(result),
+      shared: false,
+      likes: 0,
+    });
 
-    const calc = repo.create({ expression, result });
-    const saved = await repo.save(calc);
-
-    return NextResponse.json(saved, { status: 201 });
+    const saved = await repo.save(calculation);
+    return NextResponse.json({ success: true, data: saved }, { status: 201 });
   } catch (error) {
-    console.error('Error saving calculation:', error);
+    console.error('POST /api/calculations error:', error);
     return NextResponse.json(
-      { error: 'Failed to save calculation' },
+      { success: false, error: 'Failed to save calculation' },
       { status: 500 }
     );
   }

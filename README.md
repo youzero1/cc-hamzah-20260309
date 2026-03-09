@@ -1,40 +1,98 @@
-# cc — Calculator
+# cc — Social Calculator
 
-A social media-inspired calculator app built with Next.js, TypeScript, and SQLite.
+A fully functional calculator with a social media-inspired design, built with Next.js, TypeScript, and SQLite.
 
 ## Features
 
-- ✅ Basic arithmetic operations (+, -, ×, ÷)
-- ✅ Percentage calculations
-- ✅ Calculation history (SQLite database)
-- ✅ Share/copy results
-- ✅ Keyboard support
-- ✅ Responsive design
-- ✅ Social media-inspired UI
+- **Calculator**: Full arithmetic support (+, −, ×, ÷, %, ±, decimal)
+- **Keyboard Support**: Type numbers and operators directly
+- **Calculation History**: Persisted to SQLite, shown in the sidebar
+- **Community Feed**: Share calculations publicly; other users can like them
+- **Modern UI**: Dark theme with purple/pink gradient accents
 
-## Development
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- npm
+
+### Local Development
 
 ```bash
-npm install
+# Install dependencies
+npm i
+
+# Start development server
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Visit [http://localhost:3000](http://localhost:3000).
 
-## Production with Docker
+### Environment Variables
 
-```bash
-docker-compose up -d
+The `.env` file is pre-configured:
+
+```
+DATABASE_PATH=./data/cc.sqlite
+NEXT_PUBLIC_APP_NAME=cc
 ```
 
-## Environment Variables
+The `data/` directory is created automatically on first run.
 
-| Variable | Description | Default |
-|---|---|---|
-| `DATABASE_PATH` | Path to SQLite database file | `./database.sqlite` |
-| `NEXT_PUBLIC_APP_NAME` | App name | `cc` |
+### Production Build
 
-## API Routes
+```bash
+npm run build
+npm start
+```
 
-- `POST /api/calculations` — Save a new calculation
-- `GET /api/history` — Get last 20 calculations
+### Docker
+
+```bash
+# Build and run with Docker Compose
+docker-compose up -d
+
+# Or build manually
+docker build -t cc .
+docker run -p 3000:3000 -v cc_data:/app/data cc
+```
+
+## Usage
+
+1. **Calculate**: Click buttons or use your keyboard.
+2. **Share**: After evaluating an expression, click **"Share to Community"** to post it to the feed.
+3. **Like**: Click the heart button on any shared calculation in the community feed.
+4. **History**: Your recent calculations appear below the calculator. Click any to restore it.
+
+## Tech Stack
+
+- **Next.js 14** (App Router)
+- **TypeScript**
+- **TypeORM** + **better-sqlite3**
+- **CSS Variables** (no external CSS framework)
+
+## Project Structure
+
+```
+src/
+├── app/
+│   ├── api/
+│   │   ├── calculations/      # CRUD for calculations
+│   │   └── history/           # Shared feed + likes
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── Button.tsx
+│   ├── Calculator.tsx
+│   ├── CalculationHistory.tsx
+│   ├── Display.tsx
+│   └── SharedCalculations.tsx
+├── entities/
+│   └── Calculation.ts
+├── lib/
+│   └── database.ts
+└── types/
+    └── index.ts
+```

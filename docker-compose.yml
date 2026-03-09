@@ -9,13 +9,13 @@ services:
       - '3000:3000'
     environment:
       - NODE_ENV=production
-      - DATABASE_PATH=/app/data/database.sqlite
+      - DATABASE_PATH=./data/cc.sqlite
       - NEXT_PUBLIC_APP_NAME=cc
     volumes:
       - cc_data:/app/data
     restart: unless-stopped
     healthcheck:
-      test: ['CMD-SHELL', 'wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1']
+      test: ['CMD', 'wget', '--no-verbose', '--tries=1', '--spider', 'http://localhost:3000']
       interval: 30s
       timeout: 10s
       retries: 3

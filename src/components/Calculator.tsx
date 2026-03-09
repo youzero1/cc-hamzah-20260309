@@ -1,282 +1,333 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import CalculatorDisplay from './CalculatorDisplay';
-import CalculatorButton from './CalculatorButton';
+import Display from './Display';
+import Button from './Button';
 import CalculationHistory from './CalculationHistory';
-import ShareButton from './ShareButton';
-import { evaluate } from '@/lib/calculator';
+import { CalcButton, CalculationRecord } from '@/types';
 
-type ButtonDef = {
-  label: string;
-  variant: 'number' | 'operator' | 'action' | 'equals' | 'zero';
-  value?: string;
-  colSpan?: number;
-};
+const BUTTONS: CalcButton[] = [
+  { label: 'AC', value: 'AC', type: 'action' },
+  { label: '±', value: '±', type: 'action' },
+  { label: '%', value: '%', type: 'action' },
+  { label: '÷', value: '/', type: 'operator' },
 
-const BUTTONS: ButtonDef[] = [
-  { label: 'AC', variant: 'action', value: 'clear' },
-  { label: '⌫', variant: 'action', value: 'backspace' },
-  { label: '%', variant: 'operator', value: '%' },
-  { label: '÷', variant: 'operator', value: '/' },
+  { label: '7', value: '7', type: 'number' },
+  { label: '8', value: '8', type: 'number' },
+  { label: '9', value: '9', type: 'number' },
+  { label: '×', value: '*', type: 'operator' },
 
-  { label: '7', variant: 'number' },
-  { label: '8', variant: 'number' },
-  { label: '9', variant: 'number' },
-  { label: '×', variant: 'operator', value: '*' },
+  { label: '4', value: '4', type: 'number' },
+  { label: '5', value: '5', type: 'number' },
+  { label: '6', value: '6', type: 'number' },
+  { label: '−', value: '-', type: 'operator' },
 
-  { label: '4', variant: 'number' },
-  { label: '5', variant: 'number' },
-  { label: '6', variant: 'number' },
-  { label: '−', variant: 'operator', value: '-' },
+  { label: '1', value: '1', type: 'number' },
+  { label: '2', value: '2', type: 'number' },
+  { label: '3', value: '3', type: 'number' },
+  { label: '+', value: '+', type: 'operator' },
 
-  { label: '1', variant: 'number' },
-  { label: '2', variant: 'number' },
-  { label: '3', variant: 'number' },
-  { label: '+', variant: 'operator' },
-
-  { label: '0', variant: 'zero', colSpan: 2 },
-  { label: '.', variant: 'number' },
-  { label: '=', variant: 'equals', value: 'equals' },
+  { label: '0', value: '0', type: 'number', span: 2 },
+  { label: '.', value: '.', type: 'number' },
+  { label: '=', value: '=', type: 'equals' },
 ];
 
-export default function Calculator() {
+const OPERATORS = ['+', '-', '*', '/'];
+
+function evaluate(expression: string): string {
+  try {
+    // Replace display chars with real operators
+    const sanitized = expression
+      .replace(/×/g, '*')
+      .replace(/÷/g, '/')
+      .replace(/−/g, '-');
+
+    // Check for division by zero
+    if (/\/\s*0(?![.\d])/.test(sanitized)) {
+      return 'Error: ÷0';
+    }
+
+    // Safe evaluation using Function
+    // eslint-disable-next-line no-new-func
+    const result = Function('"use strict"; return (' + sanitized + ')')();
+
+    if (typeof result !== 'number' || !isFinite(result)) {
+      return 'Error';
+    }
+
+    // Format result: avoid excessive decimals
+    const str = parseFloat(result.toFixed(10)).toString();
+    return str;
+  } catch {
+    return 'Error';
+  }
+}
+
+function isOperator(char: string): boolean {
+  return OPERATORS.includes(char);
+}
+
+interface CalculatorProps {
+  onShare: () => void;
+}
+
+export default function Calculator({ onShare }: CalculatorProps) {
   const [expression, setExpression] = useState('');
   const [display, setDisplay] = useState('0');
-  const [hasResult, setHasResult] = useState(false);
-  const [lastResult, setLastResult] = useState('');
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [historyRefresh, setHistoryRefresh] = useState(0);
-  const [lastSaved, setLastSaved] = useState<{ expression: string; result: string } | null>(null);
+  const [isError, setIsError] = useState(false);
+  const [justEvaluated, setJustEvaluated] = useState(false);
+  const [history, setHistory] = useState<CalculationRecord[]>([]);
+  const [sharing, setSharing] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
+  const [lastSavedId, setLastSavedId] = useState<number | null>(null);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/calculations');
+      const data = await res.json();
+      if (data.success) {
+        setHistory(data.data.slice(0, 10));
+      }
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const saveCalculation = useCallback(
     async (expr: string, result: string) => {
+      if (result.startsWith('Error')) return null;
       try {
-        await fetch('/api/calculations', {
+        const res = await fetch('/api/calculations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ expression: expr, result }),
         });
-        setLastSaved({ expression: expr, result });
-        setHistoryRefresh((prev) => prev + 1);
+        const data = await res.json();
+        if (data.success) {
+          setLastSavedId(data.data.id);
+          loadHistory();
+          return data.data.id;
+        }
       } catch (err) {
         console.error('Failed to save calculation:', err);
       }
+      return null;
     },
-    []
+    [loadHistory]
   );
 
-  const handleButton = useCallback(
-    (value: string) => {
-      const operators = ['+', '-', '*', '/'];
+  const handleInput = useCallback(
+    async (value: string) => {
+      setIsError(false);
 
-      if (value === 'clear') {
+      if (value === 'AC') {
         setExpression('');
         setDisplay('0');
-        setHasResult(false);
-        setLastResult('');
-        setLastSaved(null);
+        setJustEvaluated(false);
+        setLastSavedId(null);
         return;
       }
 
-      if (value === 'backspace') {
-        if (hasResult) {
-          setExpression('');
-          setDisplay('0');
-          setHasResult(false);
-          return;
+      if (value === '±') {
+        if (display !== '0' && display !== 'Error') {
+          const negated = display.startsWith('-')
+            ? display.slice(1)
+            : '-' + display;
+          setDisplay(negated);
+          // Update expression end number
+          setExpression(prev => {
+            const match = prev.match(/^(.*[+\-*/])?(-?[\d.]+)$/);
+            if (match) {
+              const prefix = match[1] || '';
+              const num = match[2];
+              const negNum = num.startsWith('-') ? num.slice(1) : '-' + num;
+              return prefix + negNum;
+            }
+            return prev.startsWith('-') ? prev.slice(1) : '-' + prev;
+          });
         }
-        const newExpr = expression.slice(0, -1);
-        setExpression(newExpr);
-        setDisplay(newExpr || '0');
         return;
       }
 
-      if (value === 'equals') {
-        if (!expression) return;
-        const result = evaluate(expression);
-        setDisplay(result);
-        if (result !== 'Error') {
-          setLastResult(result);
-          setHasResult(true);
-          saveCalculation(expression, result);
+      if (value === '%') {
+        if (display !== '0' && !isError) {
+          const pct = parseFloat(display) / 100;
+          const pctStr = parseFloat(pct.toFixed(10)).toString();
+          setDisplay(pctStr);
+          setExpression(prev => {
+            const match = prev.match(/^(.*[+\-*/])?(-?[\d.]+)$/);
+            if (match) {
+              const prefix = match[1] || '';
+              return prefix + pctStr;
+            }
+            return pctStr;
+          });
+        }
+        return;
+      }
+
+      if (value === '=') {
+        if (!expression && display === '0') return;
+        const expr = expression || display;
+        const result = evaluate(expr);
+        if (result.startsWith('Error')) {
+          setDisplay(result);
+          setIsError(true);
         } else {
-          setHasResult(false);
+          setDisplay(result);
+          setExpression(expr);
+          setJustEvaluated(true);
+          await saveCalculation(expr, result);
         }
         return;
       }
 
-      // Handle operators
-      if (operators.includes(value) || value === '%') {
-        if (hasResult && lastResult) {
-          // Continue from result
-          const newExpr = lastResult + value;
-          setExpression(newExpr);
-          setDisplay(newExpr);
-          setHasResult(false);
-          return;
-        }
-        if (!expression) return;
-        // Replace trailing operator
-        const lastChar = expression[expression.length - 1];
-        if (operators.includes(lastChar)) {
-          const newExpr = expression.slice(0, -1) + value;
-          setExpression(newExpr);
-          setDisplay(newExpr);
-          return;
-        }
-        const newExpr = expression + value;
-        setExpression(newExpr);
-        setDisplay(newExpr);
+      if (isOperator(value)) {
+        const currentExpr = justEvaluated ? display : expression;
+        // Remove trailing operator if any
+        const base = currentExpr.replace(/[+\-*/]$/, '') || display;
+        setExpression(base + value);
+        setDisplay(value === '-' ? '-' : display);
+        setJustEvaluated(false);
+        return;
+      }
+
+      // Number or decimal
+      if (justEvaluated) {
+        // Start fresh after evaluation
+        setExpression(value);
+        setDisplay(value);
+        setJustEvaluated(false);
         return;
       }
 
       // Handle decimal
       if (value === '.') {
-        if (hasResult) {
-          setExpression('0.');
-          setDisplay('0.');
-          setHasResult(false);
-          return;
-        }
-        // Find the last number segment
-        const parts = expression.split(/[+\-*/%]/);
+        // Find the current number being entered
+        const parts = expression.split(/[+\-*/]/);
         const lastPart = parts[parts.length - 1];
-        if (lastPart.includes('.')) return;
-        const newExpr = expression + '.';
-        setExpression(newExpr);
-        setDisplay(newExpr);
+        if (lastPart.includes('.')) return; // Already has a decimal
+        setExpression(prev => (prev === '' ? '0.' : prev + '.'));
+        setDisplay(prev => (prev.includes('.') ? prev : prev + '.'));
         return;
       }
 
-      // Handle digits
-      if (hasResult) {
-        // Start fresh with new number
-        setExpression(value);
-        setDisplay(value);
-        setHasResult(false);
-        return;
-      }
-
-      const newExpr = expression === '0' ? value : expression + value;
+      // Normal digit
+      const newExpr = expression + value;
       setExpression(newExpr);
-      setDisplay(newExpr);
+
+      // Update display with current number
+      const parts = newExpr.split(/(?<=[\d.])(?=[+\-*/])|(?<=[+\-*/])(?=[\d.-])/);
+      const lastNum = parts[parts.length - 1];
+      setDisplay(lastNum || value);
     },
-    [expression, hasResult, lastResult, saveCalculation]
+    [expression, display, isError, justEvaluated, saveCalculation]
   );
 
   // Keyboard support
   useEffect(() => {
-    const keyMap: Record<string, string> = {
-      '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
-      '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
-      '+': '+', '-': '-', '*': '*', '/': '/',
-      '.': '.', '%': '%',
-      'Enter': 'equals', '=': 'equals',
-      'Backspace': 'backspace',
-      'Escape': 'clear', 'c': 'clear', 'C': 'clear',
-    };
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const mapped = keyMap[e.key];
-      if (mapped) {
-        e.preventDefault();
-        handleButton(mapped);
+    const handleKey = (e: KeyboardEvent) => {
+      const { key } = e;
+      if (key >= '0' && key <= '9') handleInput(key);
+      else if (key === '+') handleInput('+');
+      else if (key === '-') handleInput('-');
+      else if (key === '*') handleInput('*');
+      else if (key === '/') { e.preventDefault(); handleInput('/'); }
+      else if (key === '.') handleInput('.');
+      else if (key === 'Enter' || key === '=') handleInput('=');
+      else if (key === 'Escape') handleInput('AC');
+      else if (key === 'Backspace') {
+        setExpression(prev => {
+          const next = prev.slice(0, -1);
+          const parts = next.split(/(?<=[\d.])(?=[+\-*/])|(?<=[+\-*/])(?=[\d.-])/);
+          const last = parts[parts.length - 1];
+          setDisplay(last || '0');
+          return next;
+        });
       }
+      else if (key === '%') handleInput('%');
     };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [handleInput]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [handleButton]);
+  const handleShare = async () => {
+    if (!lastSavedId) {
+      showToast('Calculate something first!');
+      return;
+    }
+    setSharing(true);
+    try {
+      const res = await fetch(`/api/calculations/${lastSavedId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ shared: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast('🎉 Shared to the community feed!');
+        onShare();
+        setLastSavedId(null);
+      } else {
+        showToast('Failed to share. Try again.');
+      }
+    } catch (err) {
+      console.error('Share error:', err);
+      showToast('Failed to share. Try again.');
+    } finally {
+      setSharing(false);
+    }
+  };
 
-  const handleHistorySelect = (expr: string, result: string) => {
-    setExpression(expr);
-    setDisplay(result);
-    setLastResult(result);
-    setHasResult(true);
-    setHistoryOpen(false);
+  const handleHistorySelect = (calc: CalculationRecord) => {
+    setExpression(calc.expression);
+    setDisplay(calc.result);
+    setJustEvaluated(true);
+    setIsError(false);
+    setLastSavedId(calc.id);
   };
 
   return (
     <>
-      <div className="w-full max-w-md">
-        {/* Calculator Card */}
-        <div className="glass-card rounded-3xl p-4 shadow-2xl shadow-black/50">
-          {/* Action bar */}
-          <div className="flex items-center justify-between mb-3">
-            <button
-              onClick={() => setHistoryOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white/60 hover:text-white text-sm font-medium transition-all"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              History
-            </button>
-
-            {hasResult && lastSaved && (
-              <div className="animate-fade-in">
-                <ShareButton
-                  expression={lastSaved.expression}
-                  result={lastSaved.result}
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Display */}
-          <CalculatorDisplay
-            expression={expression}
-            display={display}
-            hasResult={hasResult}
-          />
-
-          {/* Buttons Grid */}
-          <div className="grid grid-cols-4 gap-2.5">
-            {BUTTONS.map((btn) => (
-              <CalculatorButton
-                key={btn.label}
-                label={btn.label}
-                onClick={() => handleButton(btn.value ?? btn.label)}
-                variant={btn.variant}
-                colSpan={btn.colSpan}
-              />
-            ))}
-          </div>
-
-          {/* Bottom: keyboard hint */}
-          <p className="text-center text-white/15 text-xs mt-4">
-            ⌨️ Keyboard shortcuts supported
-          </p>
+      <div className="calculator-wrapper">
+        <div className="calculator-header">
+          <span className="calculator-title">Calculator</span>
+          <span className="keyboard-hint">⌨️ keyboard supported</span>
         </div>
 
-        {/* Social proof / stats bar */}
-        <div className="mt-3 glass-card rounded-2xl px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="flex -space-x-1">
-              {['from-violet-400 to-pink-400', 'from-blue-400 to-cyan-400', 'from-orange-400 to-yellow-400'].map((grad, i) => (
-                <div
-                  key={i}
-                  className={`w-6 h-6 rounded-full bg-gradient-to-br ${grad} border-2 border-black/30`}
-                />
-              ))}
-            </div>
-            <span className="text-white/40 text-xs">cc users calculating</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse"></div>
-            <span className="text-white/30 text-xs">Live</span>
-          </div>
+        <Display
+          expression={expression}
+          result={display}
+          isError={isError}
+        />
+
+        <div className="button-grid">
+          {BUTTONS.map((btn) => (
+            <Button key={btn.label} button={btn} onClick={handleInput} />
+          ))}
         </div>
+
+        <button
+          className="share-button"
+          onClick={handleShare}
+          disabled={sharing || !lastSavedId}
+        >
+          {sharing ? '⏳ Sharing...' : '📡 Share to Community'}
+        </button>
       </div>
 
-      {/* History Panel */}
-      <CalculationHistory
-        isOpen={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-        refreshTrigger={historyRefresh}
-        onSelectItem={handleHistorySelect}
-      />
+      <CalculationHistory history={history} onSelect={handleHistorySelect} />
+
+      {toast && <div className="toast">{toast}</div>}
     </>
   );
 }
