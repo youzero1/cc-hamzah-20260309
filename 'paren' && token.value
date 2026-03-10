@@ -1,0 +1,286 @@
+'(') {
+      this.consume(); // consume '('
+      const result = this.parseExpression();
+      const closeParen = this.peek();
+      if (!closeParen || closeParen.value !== ')') {
+        throw new Error('Missing closing parenthesis');
+      }
+      this.consume(); // consume ')'
+      return result;
+    }
+
+    throw new Error('Unexpected token: ' + token.value);
+  }
+}
+
+/**
+ * Format number for display - remove trailing zeros and limit precision
+ */
+function formatResult(value: number): string {
+  if (!isFinite(value)) {
+    if (value === Infinity) return '∞';
+    if (value === -Infinity) return '-∞';
+    return 'NaN';
+  }
+
+  // Handle very large or very small numbers with scientific notation
+  if (Math.abs(value) > 1e15 || (Math.abs(value) < 1e-10 && value !== 0)) {
+    return value.toExponential(6);
+  }
+
+  // Round to avoid floating point issues
+  const rounded = Math.round(value * 1e10) / 1e10;
+  const str = rounded.toString();
+
+  // Limit total length
+  if (str.length > 15) {
+    return parseFloat(rounded.toPrecision(10)).toString();
+  }
+
+  return str;
+}
+
+/**
+ * Main evaluate function - takes expression string, returns result string
+ */
+export function evaluate(expression: string): string {
+  if (!expression || expression.trim() === '') {
+    throw new Error('Empty expression');
+  }
+
+  // Replace display symbols with operators
+  let normalized = expression
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/−/g, '-');
+
+  const tokens = tokenize(normalized);
+
+  if (tokens.length === 0) {
+    throw new Error('Empty expression');
+  }
+
+  const parser = new Parser(tokens);
+  const result = parser.parse();
+
+  return formatResult(result);
+}
+
+/**
+ * Validate if an expression can potentially be evaluated
+ */
+export function isValidExpression(expression: string): boolean {
+  try {
+    evaluate(expression);
+    return true;
+  } catch {
+    return false;
+  }
+}
+</file>
+
+<file path="src/entities/Calculation.ts">
+import 'reflect-metadata';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+
+@Entity('calculations')
+export class Calculation {
+  @PrimaryGeneratedColumn()
+  id!: number;
+
+  @Column({ type: 'text' })
+  expression!: string;
+
+  @Column({ type: 'text' })
+  result!: string;
+
+  @Column({ type: 'boolean', default: false })
+  shared!: boolean;
+
+  @Column({ type: 'integer', default: 0 })
+  likes!: number;
+
+  @CreateDateColumn()
+  createdAt!: Date;
+}
+</file>
+
+<file path="src/lib/database.ts">
+import 'reflect-metadata';
+import { DataSource, Repository } from 'typeorm';
+import { Calculation } from '@/entities/Calculation';
+
+let dataSource: DataSource | null = null;
+
+async function getDataSource(): Promise<DataSource> {
+  if (dataSource && dataSource.isInitialized) {
+    return dataSource;
+  }
+
+  dataSource = new DataSource({
+    type: 'better-sqlite3',
+    database: process.env.DB_PATH || './data/calculator.db',
+    entities: [Calculation],
+    synchronize: true,
+    logging: false,
+  });
+
+  await dataSource.initialize();
+  return dataSource;
+}
+
+export async function getCalculationRepository(): Promise<Repository<Calculation>> {
+  const ds = await getDataSource();
+  return ds.getRepository(Calculation);
+}
+
+export { getDataSource };
+</file>
+
+<file path="src/components/Display.tsx">
+'use client';
+
+import React from 'react';
+
+interface DisplayProps {
+  expression: string;
+  result: string;
+  error?: boolean;
+}
+
+const Display: React.FC<DisplayProps> = ({ expression, result, error }) => {
+  return (
+    <div className="display-wrapper">
+      <div className="display-expression">{expression || '\u00A0'}</div>
+      <div className={`display-result ${error ? 'error' : ''}`}>
+        {result || '0'}
+      </div>
+    </div>
+  );
+};
+
+export default Display;
+</file>
+
+<file path="src/components/CalculatorDisplay.tsx">
+'use client';
+
+import React from 'react';
+
+interface CalculatorDisplayProps {
+  expression: string;
+  result: string;
+  error?: boolean;
+}
+
+const CalculatorDisplay: React.FC<CalculatorDisplayProps> = ({ expression, result, error }) => {
+  return (
+    <div className="display-wrapper">
+      <div className="display-expression">{expression || '\u00A0'}</div>
+      <div className={`display-result ${error ? 'error' : ''}`}>
+        {result || '0'}
+      </div>
+    </div>
+  );
+};
+
+export default CalculatorDisplay;
+</file>
+
+<file path="src/components/Button.tsx">
+'use client';
+
+import React from 'react';
+import { ButtonType } from '@/types';
+
+interface ButtonProps {
+  label: string;
+  type: ButtonType;
+  span?: number;
+  onClick: () => void;
+}
+
+const Button: React.FC<ButtonProps> = ({ label, type, span, onClick }) => {
+  const className = `calc-button ${type}${span && span > 1 ? ' span-2' : ''}`;
+
+  return (
+    <button
+      className={className}
+      onClick={onClick}
+      style={span && span > 1 ? { gridColumn: `span ${span}` } : undefined}
+    >
+      {label}
+    </button>
+  );
+};
+
+export default Button;
+</file>
+
+<file path="src/components/CalculatorButton.tsx">
+'use client';
+
+import React from 'react';
+import { ButtonType } from '@/types';
+
+interface CalculatorButtonProps {
+  label: string;
+  type: ButtonType;
+  span?: number;
+  onClick: () => void;
+}
+
+const CalculatorButton: React.FC<CalculatorButtonProps> = ({ label, type, span, onClick }) => {
+  const className = `calc-button ${type}${span && span > 1 ? ' span-2' : ''}`;
+
+  return (
+    <button
+      className={className}
+      onClick={onClick}
+      style={span && span > 1 ? { gridColumn: `span ${span}` } : undefined}
+    >
+      {label}
+    </button>
+  );
+};
+
+export default CalculatorButton;
+</file>
+
+<file path="src/components/CalculationHistory.tsx">
+'use client';
+
+import React from 'react';
+
+interface HistoryEntry {
+  expression: string;
+  result: string;
+}
+
+interface CalculationHistoryProps {
+  history: HistoryEntry[];
+  onSelect: (entry: HistoryEntry) => void;
+}
+
+const CalculationHistory: React.FC<CalculationHistoryProps> = ({ history, onSelect }) => {
+  if (history.length === 0) {
+    return (
+      <div className="history-wrapper">
+        <div className="history-title">History</div>
+        <div className="history-empty">No calculations yet</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="history-wrapper">
+      <div className="history-title">History</div>
+      {history.map((entry, index) => (
+        <div
+          key={index}
+          className="history-item"
+          onClick={() => onSelect(entry)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key
