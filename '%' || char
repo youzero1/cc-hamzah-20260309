@@ -1,0 +1,78 @@
+'^') {
+      // Handle unary minus: at start, after open paren, or after operator
+      if (
+        char === '-' &&
+        (tokens.length === 0 ||
+          tokens[tokens.length - 1].type === 'operator' ||
+          tokens[tokens.length - 1].value === '(')
+      ) {
+        let num = '-';
+        i++;
+        while (i < expr.length && (expr[i] >= '0' && expr[i] <= '9' || expr[i] === '.')) {
+          num += expr[i];
+          i++;
+        }
+        if (num === '-') {
+          // Just a minus with no number following - treat as operator
+          tokens.push({ type: 'operator', value: char });
+        } else {
+          tokens.push({ type: 'number', value: num });
+        }
+        continue;
+      }
+
+      tokens.push({ type: 'operator', value: char });
+      i++;
+      continue;
+    }
+
+    // Skip unknown characters
+    i++;
+  }
+
+  return tokens;
+}
+
+/**
+ * Recursive descent parser and evaluator
+ * Grammar:
+ *   expression = term (('+' | '-') term)*
+ *   term = power (('*' | '/' | '%') power)*
+ *   power = unary ('^' unary)*
+ *   unary = ('-')? factor
+ *   factor = number | '(' expression ')'
+ */
+class Parser {
+  private tokens: Token[];
+  private pos: number;
+
+  constructor(tokens: Token[]) {
+    this.tokens = tokens;
+    this.pos = 0;
+  }
+
+  private peek(): Token | undefined {
+    return this.tokens[this.pos];
+  }
+
+  private consume(): Token {
+    const token = this.tokens[this.pos];
+    this.pos++;
+    return token;
+  }
+
+  parse(): number {
+    const result = this.parseExpression();
+    if (this.pos < this.tokens.length) {
+      throw new Error('Unexpected token: ' + this.tokens[this.pos].value);
+    }
+    return result;
+  }
+
+  private parseExpression(): number {
+    let left = this.parseTerm();
+
+    while (
+      this.peek() &&
+      this.peek()!.type === 'operator' &&
+      (this.peek()!.value
