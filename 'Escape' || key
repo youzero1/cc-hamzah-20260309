@@ -1,0 +1,124 @@
+'Delete') {
+        handleClear();
+      } else if (key === 'Backspace') {
+        if (isResult) {
+          handleClear();
+        } else {
+          const newExpr = expression.slice(0, -1);
+          setExpression(newExpr);
+          setDisplay(newExpr || '0');
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleInput, handleEvaluate, handleClear, expression, isResult]);
+
+  const handleHistorySelect = useCallback((entry: HistoryEntry) => {
+    setExpression(entry.expression);
+    setDisplay(entry.result);
+    setIsResult(true);
+    setIsError(false);
+    setLastExpression(entry.expression);
+    setLastResult(entry.result);
+  }, []);
+
+  return (
+    <>
+      <div className="calculator-wrapper">
+        <div className="calculator-header">
+          <span className="calculator-title">Calculator</span>
+          <span className="keyboard-hint">⌨ Keyboard enabled</span>
+        </div>
+
+        <Display
+          expression={isResult ? expression : ''}
+          result={display}
+          error={isError}
+        />
+
+        <div className="button-grid">
+          {BUTTONS.map((btn) => (
+            <CalculatorButton
+              key={btn.label + btn.value}
+              label={btn.label}
+              type={btn.type}
+              span={btn.span}
+              onClick={() => handleInput(btn.value)}
+            />
+          ))}
+        </div>
+
+        <ShareButton
+          expression={lastExpression}
+          result={lastResult}
+          onShared={onShare}
+        />
+      </div>
+
+      <CalculationHistory
+        history={history}
+        onSelect={handleHistorySelect}
+      />
+    </>
+  );
+};
+
+export default Calculator;
+</file>
+
+<file path="src/components/SharedCalculations.tsx">
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { CalculationRecord } from '@/types';
+
+const SharedCalculations: React.FC = () => {
+  const [calculations, setCalculations] = useState<CalculationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [likedIds, setLikedIds] = useState<Set<number>>(new Set());
+
+  const fetchShared = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch('/api/history');
+      const data = await res.json();
+      if (data.success) {
+        setCalculations(data.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch shared calculations:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShared();
+  }, [fetchShared]);
+
+  const handleLike = async (id: number) => {
+    try {
+      const res = await fetch(`/api/history/${id}/like`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCalculations(prev =>
+          prev.map(calc =>
+            calc.id === id ? { ...calc, likes: data.data.likes } : calc
+          )
+        );
+        setLikedIds(prev => new Set(prev).add(id));
+      }
+    } catch (error) {
+      console.error('Failed to like calculation:', error);
+    }
+  };
+
+  const formatTime = (dateStr: Date | string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs /
