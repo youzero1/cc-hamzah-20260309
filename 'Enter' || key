@@ -1,0 +1,4 @@
+'=') {
+        e.preventDefault();
+        handleEvaluate();
+      } else if (key
