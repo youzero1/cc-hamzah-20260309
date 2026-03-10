@@ -1,0 +1,21 @@
+'-')
+    ) {
+      const op = this.consume().value;
+      const right = this.parseTerm();
+      if (op === '+') {
+        left = left + right;
+      } else {
+        left = left - right;
+      }
+    }
+
+    return left;
+  }
+
+  private parseTerm(): number {
+    let left = this.parsePower();
+
+    while (
+      this.peek() &&
+      this.peek()!.type === 'operator' &&
+      (this.peek()!.value
